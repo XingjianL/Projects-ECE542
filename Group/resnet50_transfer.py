@@ -17,7 +17,7 @@ import torchvision
 print(torchvision.__version__) #0.13.0+cu116
 
 batch_size = 32
-data_path = './TrainData/'
+data_path = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Group/'
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
 data_transforms = {

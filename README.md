@@ -2,6 +2,8 @@
 
 tested in a ubuntu20.04 environment
 
+# Remember to change file paths in python files
+
 ## Comp Data goes here
 
 Comp/data/TestData/\<all test(x,y,xtime,ytime)>.csv
