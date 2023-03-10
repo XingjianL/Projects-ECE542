@@ -14,4 +14,5 @@ Group/TrainData/archive/HAM10000_images_part_(1,2)/images.png
 
 Group/TrainData/archive/HAM10000_metadata.csv
 
+then run the .py file in TrainData to prepare dataset for transfer learning
 ---
