@@ -1,5 +1,7 @@
 # Projects-ECE542
 
+tested in a ubuntu20.04 environment
+
 ## Comp Data goes here
 
 Comp/data/TestData/\<all test(x,y,xtime,ytime)>.csv
