@@ -4,4 +4,5 @@ Group/TrainData/validation/
 
 Comp/CFC/
 Comp/data/*
-Comp/logs
+Comp/logs/*
+Comp/log/
