@@ -1,6 +1,5 @@
 import random
 
-
 import vis
 
 import numpy as np
@@ -53,7 +52,7 @@ if __name__ == "__main__":
     print(train_set[0])
     print(len(train_set[0]))
     #N = len(train_set[0])
-    N = 80 # 2 second interval
+    N = 40 # 1 second interval
     batch_count = np.floor(len(train_set[0])/N).astype(int)
     print(batch_count)
     train_set_x = train_set[0].to_numpy()[:batch_count*N,:6].reshape([batch_count,N,6]).astype(np.float32)
@@ -67,26 +66,27 @@ if __name__ == "__main__":
     dataloader = data.DataLoader(
         data.TensorDataset(train_set_x, train_set_y),
         batch_size=128,
-        shuffle=True,
+        #shuffle=True,
         num_workers=4
     )
-    sns.set()
-    plt.figure(figsize=(6, 4))
-    plt.plot(train_set_x[100, :, :],label="IMU")
-    #plt.plot(train_set_x[0, :, 1], label="Input feature 1")
-    plt.plot(train_set_y[100, :, :], label="Label")
-    plt.ylim((-1.1, 1.1))
-    plt.title("Training data")
-    plt.legend(loc="upper right")
-    plt.show()
+    for i in range(10):
+        sns.set()
+        plt.figure(figsize=(6, 4))
+        plt.plot(train_set_x[100*i, :, :],label="IMU")
+        #plt.plot(train_set_x[0, :, 1], label="Input feature 1")
+        plt.plot(train_set_y[100*i, :, :], label="Label")
+        plt.ylim((-1.1, 1.1))
+        plt.title("Training data")
+        plt.legend(loc="upper right")
+        plt.show()
 
-    wiring = AutoNCP(32, 4)  # 16 units, 4 motor neuron
+    wiring = AutoNCP(16, 4)  # 16 units, 4 motor neuron
 
     cfc_model = CfC(6, wiring, batch_first=True)
     learn = SequenceLearner(cfc_model, lr=0.01)
     trainer = pl.Trainer(
         logger=pl.loggers.CSVLogger("log"),
-        max_epochs=400,
+        max_epochs=200,
         gradient_clip_val=1,  # Clip gradient to stabilize training
         accelerator="gpu", 
         devices="auto"
@@ -108,13 +108,14 @@ if __name__ == "__main__":
     trainer.fit(learn, dataloader)
 
     # How does the trained model now fit to the sinusoidal function?
-    sns.set()
-    with torch.no_grad():
-        prediction = cfc_model(train_set_x)[0].numpy()
-    plt.figure(figsize=(6, 4))
-    plt.plot(train_set_y[100, :, :], label="Target output")
-    plt.plot(prediction[100, :, :], label="NCP output")
-    plt.ylim((-1.1, 1.1))
-    plt.title("After training")
-    plt.legend(loc="upper right")
-    plt.show()
+    for i in range(10):
+        sns.set()
+        with torch.no_grad():
+            prediction = cfc_model(train_set_x)[0].numpy()
+        plt.figure(figsize=(6, 4))
+        plt.plot(train_set_y[100*i, :, :], label="Target output")
+        plt.plot(prediction[100*i, :, :], label="NCP output")
+        plt.ylim((-1.1, 1.1))
+        plt.title("After training")
+        plt.legend(loc="upper right")
+        plt.show()

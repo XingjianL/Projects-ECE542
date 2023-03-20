@@ -50,9 +50,10 @@ def splitTrainVal(train_set_x, train_set_y, val_train_split = 1/5):
         val_samples = sum([len(train_set_x[idx]) for idx in val_idxs])
     #print(val_samples)
     #print(val_samples/total_samples)
-    #print(val_idxs)
+    
     train_idxs = [x for x in range(len(train_set_x)) if x not in val_idxs]
-    #print(train_idxs)
+    print(train_idxs)
+    print(val_idxs)
     return train_idxs, val_idxs
 
 def combineAndUpsample(X : List[pd.DataFrame], y : List[pd.DataFrame], consistent_times = True):
@@ -109,9 +110,9 @@ def prepareData(filepath : str, plot = False, consistent_times = True, one_hot_e
         fig, axes = plt.subplots(nrows=3, ncols=2)
         axes[0,0].title.set_text("Interpolated Data \n(linear, should be same as original plot)")
         axes[0,1].title.set_text("Original Data")
-        X[0].iloc[:,[0,1,2,-1]].plot(x = 'time', ax=axes[0,1])
-        X[0].iloc[:,[3,4,5,-1]].plot(x = 'time', ax=axes[1,1])
-        y[0].plot(x = 'time', ax=axes[2,1])
+        train_set_x[0].iloc[:,[0,1,2,-1]].plot(x = 'time', ax=axes[0,1])
+        train_set_x[0].iloc[:,[3,4,5,-1]].plot(x = 'time', ax=axes[1,1])
+        train_set_y[0].plot(x = 'time', ax=axes[2,1])
         training_set[0].iloc[:,[0,1,2,-2]].plot(x = 'time', ax=axes[0,0])
         training_set[0].iloc[:,[3,4,5,-2]].plot(x = 'time', ax=axes[1,0])
         training_set[0].iloc[:,[-1,-2]].plot(x = 'time', ax=axes[2,0])
