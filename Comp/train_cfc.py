@@ -64,6 +64,7 @@ class SequenceLearner(pl.LightningModule):
         loss = nn.CrossEntropyLoss(weight=self.class_weights)(y_hat, target)
         acc = accuracy(pred.view(-1), target.view(-1), 'multiclass', num_classes=4)
         if acc > self.highest_acc:
+            self.highest_acc = acc
             self.savemodel()
         self.log("val_acc", acc, prog_bar=True)
         self.log("val_loss", loss, prog_bar=True)
@@ -77,7 +78,7 @@ class SequenceLearner(pl.LightningModule):
         return torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=4e-06)
 
     def savemodel(self):
-        torch.save(self.model.state_dict(), f"CompModels/{self.current_epoch}_val_{self.highest_acc}.pt")
+        torch.save(self.model.state_dict(), f"Comp/Models/{self.current_epoch}_val_{self.highest_acc}.pt")
         return
 if __name__ == "__main__":
     random.seed(1)
