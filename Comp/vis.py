@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 from typing import List
+import random
 def getDataset(dir:str):
     files_all = os.listdir(dir)
 
@@ -39,7 +40,7 @@ def getDataset(dir:str):
     #print(f"Dataset obtained: \n{X.describe()}\n{y.describe()}")
     return organizedX, organizedY
 
-def splitTrainVal(train_set_x, train_set_y, val_train_split = 1/5):
+def splitTrainVal(train_set_x, train_set_y, val_train_split = 1/10):
     total_samples = sum([len(x) for x in train_set_x])
     val_idxs = [np.random.randint(0,len(train_set_x))]
     
@@ -66,7 +67,7 @@ def combineAndUpsample(X : List[pd.DataFrame], y : List[pd.DataFrame], consisten
         #print(X_i)
         #print(y_i)
         combined = pd.merge(X_i, y_i, how='outer', on='time', sort='True')
-        upsampled = combined.interpolate(method='linear')
+        upsampled = combined.interpolate(method='nearest')
         
         upsampled['label'] = upsampled['label'].fillna(0)
         upsampled['label'] = upsampled['label'].astype(int)
@@ -126,10 +127,31 @@ def prepareData(filepath : str, plot = False, consistent_times = True, one_hot_e
     print(f"Example (training_set[0]):\n{training_set[0].head(3)}\n")
     return training_set, validation_set
 
-if __name__ == "__main__":
-    train_dir = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TrainingData/'
-    training_set, validation_set = prepareData(train_dir, plot=True)
+def prepareBatchedData(datasets, interval = 80, batch_freq = 1):
+    batched_data_X = []
+    batched_data_y = []
+    for dataset in datasets:
+        np_data = dataset.to_numpy().astype(np.float32)
+        # how many batches from this dataset
+        batch_count = (np.floor(len(dataset)/interval) * batch_freq).astype(int)
+        batch_idx = random.sample(range(0,len(dataset)-interval), batch_count)
+        X = []
+        y = []
+        for i in batch_idx:
+            X.append(np_data[i:i+interval,:6].reshape([1,interval,6]))
+            y.append(np_data[i:i+interval,8:].reshape([1,interval,4]))
+        
+        batched_data_X += X
+        batched_data_y += y
+    print(f"num_batches: {len(batched_data_X)}, each batch: {X[0].shape}")
+    batched_data_X = np.array(batched_data_X).reshape((len(batched_data_X), interval, 6))
+    batched_data_y = np.array(batched_data_y).reshape((len(batched_data_y), interval, 4))
+    return batched_data_X, batched_data_y
 
-    
+
+if __name__ == "__main__":
+    train_dir = '/home/xing/Classes/ECE542/Project/Projects-ECE542/Comp/data/TrainingData/'
+    training_set, validation_set = prepareData(train_dir, plot=False)
+    prepareBatchedData(training_set)
     #test_dir = './data/TestData/'
     #test_set = getDataset(test_dir)
