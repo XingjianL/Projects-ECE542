@@ -15,6 +15,18 @@ import torch.utils.data as data
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+config = {
+    "val_split" : 1/10,
+    "lr" : 0.002,
+    "hidden" : 64,
+    "activation" : "relu",
+    "back_dr" : 0.2,
+    "back_layer" : 2,
+    "back_units" : 128,
+    "interval" : 80,
+    "batch_freq" : 1
+}
+
 # LightningModule for training a RNNSequence module
 class SequenceLearner(pl.LightningModule):
     def __init__(self, model, lr=0.005, class_weights = None):
@@ -23,6 +35,7 @@ class SequenceLearner(pl.LightningModule):
         self.lr = lr
         self.class_weights = class_weights.cuda() # imbalanced data for weighted cross entropy
         print(class_weights)
+        self.highest_acc = 0
         #self.class_weights = None
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -50,6 +63,8 @@ class SequenceLearner(pl.LightningModule):
         target = torch.argmax(y, dim=2)
         loss = nn.CrossEntropyLoss(weight=self.class_weights)(y_hat, target)
         acc = accuracy(pred.view(-1), target.view(-1), 'multiclass', num_classes=4)
+        if acc > self.highest_acc:
+            self.savemodel()
         self.log("val_acc", acc, prog_bar=True)
         self.log("val_loss", loss, prog_bar=True)
         return loss
@@ -61,6 +76,9 @@ class SequenceLearner(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=4e-06)
 
+    def savemodel(self):
+        torch.save(self.model.state_dict(), f"CompModels/{self.current_epoch}_val_{self.highest_acc}.pt")
+        return
 if __name__ == "__main__":
     random.seed(1)
     train_dir = '/home/xing/Classes/ECE542/Project/Projects-ECE542/Comp/data/TrainingData/'
@@ -115,9 +133,10 @@ if __name__ == "__main__":
 
     #wiring = AutoNCP(32, 4, sparsity_level=0.5)  # 32 units, 4 motor neuron
 
-    # 0.8 max val acc @ epoch 83 and 20% val, no data augmentation besides Y interpolation
+    # 0.80 max val acc @ epoch 83 and 20% val, no data augmentation besides Y interpolation
     #cfc_model = CfC(6, 128, proj_size=4, batch_first=True, activation="silu", backbone_dropout=0.2, backbone_layers=2, backbone_units=64)
     
+    # 0.85 max val acc @ epoch 24 and 10% val, no aug
     cfc_model = CfC(6, 64, proj_size=4, batch_first=True, activation="relu", backbone_dropout=0.2, backbone_layers=2, backbone_units=128)
     
     learn = SequenceLearner(cfc_model, lr=0.002, class_weights=train_class_weights)

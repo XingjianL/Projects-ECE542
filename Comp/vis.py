@@ -93,11 +93,11 @@ def oneHotEncode(dataset_list):
     return dataset_list
 
 
-def prepareData(filepath : str, plot = False, consistent_times = True, one_hot_encoding = True):
+def prepareData(filepath : str, plot = False, consistent_times = True, one_hot_encoding = True, val_split = 1/10):
     # list of X dataframe each with [imu1-6, time], list of y dataframe each with [label, time]
     X, y = getDataset(filepath) 
     
-    train_idxs, val_idxs = splitTrainVal(X, y)
+    train_idxs, val_idxs = splitTrainVal(X, y, val_train_split=val_split)
     val_set_x = [X[i] for i in val_idxs]
     val_set_y = [y[i] for i in val_idxs]
     train_set_x = [X[i] for i in train_idxs]
