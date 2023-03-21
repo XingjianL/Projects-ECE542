@@ -1,6 +1,7 @@
 Group/TrainData/archive/*
 Group/TrainData/train/
 Group/TrainData/validation/
+Group/TestData
 
 Comp/CFC/
 Comp/data/*

@@ -1,6 +1,7 @@
 # modification of
 # https://www.kaggle.com/code/pmigdal/transfer-learning-with-resnet-50-in-pytorch
-
+import copy
+import pandas as pd
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,7 +18,8 @@ import torchvision
 print(torchvision.__version__) #0.13.0+cu116
 
 batch_size = 32
-data_path = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Group/'
+data_path = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Group/TrainData/'
+test_data_path = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Group/TestData/'
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
 data_transforms = {
@@ -35,12 +37,20 @@ data_transforms = {
         transforms.ToTensor(),
         normalize
     ]),
+    'test':
+    transforms.Compose([
+        transforms.Resize((224,224)),
+        transforms.ToTensor(),
+        normalize
+    ])
 }
 image_datasets = {
     'train': 
     datasets.ImageFolder(data_path + 'train', data_transforms['train']),
     'validation': 
-    datasets.ImageFolder(data_path + 'validation', data_transforms['validation'])
+    datasets.ImageFolder(data_path + 'validation', data_transforms['validation']),
+    'test': 
+    datasets.ImageFolder(test_data_path + 'test', data_transforms['test'])
 }
 dataloaders = {
     'train':
@@ -50,6 +60,11 @@ dataloaders = {
                                 num_workers=0),  # for Kaggle
     'validation':
     torch.utils.data.DataLoader(image_datasets['validation'],
+                                batch_size=batch_size,
+                                shuffle=False,
+                                num_workers=0),  # for Kaggle
+    'test':
+    torch.utils.data.DataLoader(image_datasets['test'],
                                 batch_size=batch_size,
                                 shuffle=False,
                                 num_workers=0)  # for Kaggle
@@ -70,6 +85,8 @@ optimizer = optim.Adam(model.fc.parameters())
 
 
 def train_model(model, criterion, optimizer, num_epochs=3):
+    best_model = model
+    best_acc = 0
     for epoch in range(num_epochs):
         batch_count = 0
         print('Epoch {}/{}'.format(epoch+1, num_epochs))
@@ -95,21 +112,63 @@ def train_model(model, criterion, optimizer, num_epochs=3):
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-                    if batch_count % 100 == 0: print(f"batch:{batch_count}/{np.ceil(len(image_datasets[phase])/batch_size)}, batch loss: {loss.item()}")
+                    if batch_count % 50 == 0: print(f"batch:{batch_count}/{np.ceil(len(image_datasets[phase])/batch_size)}, batch loss: {loss.item()}")
                     batch_count += 1
 
                 _, preds = torch.max(outputs, 1)
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
-                
+            
             epoch_loss = running_loss / len(image_datasets[phase])
             epoch_acc = running_corrects.double() / len(image_datasets[phase])
+            if phase == 'validation':
+                if epoch_acc > best_acc:
+                    best_model = copy.deepcopy(model)
             print('{} loss: {:.4f}, acc: {:.4f}'.format(phase,
                                                         epoch_loss,
                                                         epoch_acc))
-    return model
+            with open('Group/resnet50transfer.csv', 'a') as fd:
+                fd.write(f"\n{phase},{epoch_loss},{epoch_acc}")
+    return best_model
+
+def test_model(model):
+    model.eval()
+    corrects = 0
+    incorrects = 0
+    for inputs, labels in dataloaders['test']:
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+
+        outputs = model(inputs)
+        _, preds = torch.max(outputs, 1)
+        corrects += torch.sum(preds == labels.data)
+        incorrects += torch.sum(preds != labels.data)
+        with open('Group/resnet50transfer_preds.csv', 'a') as fd:
+            for i in range(preds.size(0)):
+                fd.write(f"\n{preds[i]},{labels[i]}")
+    return corrects, incorrects
+
+def confusion_matrix(preds_csv_filename = 'Group/resnet50transfer_preds.csv'):
+    df = pd.read_csv(preds_csv_filename, header=None)
+    preds = df.iloc[:,0].to_numpy()
+    labels = df.iloc[:,1].to_numpy()
+    from sklearn.metrics import confusion_matrix
+    return confusion_matrix(labels,preds)
+
 
 start = time.time()
 model_trained = train_model(model, criterion, optimizer, num_epochs=3)
 end = time.time()
-print(f"Time taken: {end-start} seconds")
+print(f"Train Time taken: {end-start} seconds")
+
+correct, incorrect = test_model(model_trained)
+labels=['akiec', 'bcc', 'bkl', 'df', 'mel', 'nv', 'vasc']
+print(confusion_matrix())
+import seaborn as sns
+cm = confusion_matrix()
+s = sns.heatmap(confusion_matrix(), annot=True, fmt = 'g', xticklabels=labels, yticklabels=labels)
+s.set(xlabel='preds', ylabel='truth')
+plt.show()
+print(np.trace(cm), np.sum(cm), np.trace(cm)/np.sum(cm))
+print("accuracy", correct/(correct+incorrect))
+
