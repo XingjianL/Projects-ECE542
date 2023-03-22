@@ -127,18 +127,26 @@ def prepareData(filepath : str, plot = False, consistent_times = True, one_hot_e
     print(f"Example (training_set[0]):\n{training_set[0].head(3)}\n")
     return training_set, validation_set
 
-def prepareBatchedData(datasets, interval = 80, batch_freq = 1):
+def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True, noise = True):
     batched_data_X = []
     batched_data_y = []
     for dataset in datasets:
         np_data = dataset.to_numpy().astype(np.float32)
         # how many batches from this dataset
-        batch_count = (np.floor(len(dataset)/interval) * batch_freq).astype(int)
-        batch_idx = random.sample(range(0,len(dataset)-interval), batch_count)
+        batch_count = (np.floor(len(dataset)/interval)).astype(int)
+        if randomize:
+            batch_count = batch_count * batch_freq
+            batch_idx = random.sample(range(0,len(dataset)-interval), batch_count)
+        else:
+            batch_idx = [interval*i for i in range(batch_count)]
         X = []
         y = []
         for i in batch_idx:
-            X.append(np_data[i:i+interval,:6].reshape([1,interval,6]))
+            if noise:
+                e = np.random.normal(0, 1, size = [1,interval,6])
+                X.append(np_data[i:i+interval,:6].reshape([1,interval,6]) + e)
+            else:
+                X.append(np_data[i:i+interval,:6].reshape([1,interval,6]))
             y.append(np_data[i:i+interval,8:].reshape([1,interval,4]))
         
         batched_data_X += X
