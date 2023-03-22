@@ -157,7 +157,8 @@ def confusion_matrix(preds_csv_filename = 'Group/resnet50transfer_preds.csv'):
 
 
 start = time.time()
-model_trained = train_model(model, criterion, optimizer, num_epochs=3)
+model_trained = train_model(model, criterion, optimizer, num_epochs=50)
+torch.save(model_trained.state_dict(), f"Group/Models/last.pt")
 end = time.time()
 print(f"Train Time taken: {end-start} seconds")
 
