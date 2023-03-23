@@ -150,8 +150,8 @@ def test_model(model):
 
 def confusion_matrix(preds_csv_filename = 'Group/resnet50transfer_preds.csv'):
     df = pd.read_csv(preds_csv_filename, header=None)
-    preds = df.iloc[:,0].to_numpy()
-    labels = df.iloc[:,1].to_numpy()
+    preds = df.iloc[:,-2].to_numpy()
+    labels = df.iloc[:,-1].to_numpy()
     from sklearn.metrics import confusion_matrix
     return confusion_matrix(labels,preds)
 
