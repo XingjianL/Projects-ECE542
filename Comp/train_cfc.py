@@ -17,15 +17,16 @@ import seaborn as sns
 
 _config = {
     "val_split" : 1/10,
-    "lr" : 0.002,
+    "lr" : 0.001,
     "hidden" : 128,
-    "activation" : "silu",
+    "activation" : "relu",
     "back_dr" : 0.5,
     "back_layer" : 2,
     "back_units" : 64,
     "interval" : 80,
     "batch_freq" : 1,
-    "epochs" : 50
+    "epochs" : 50,
+    "seq_out" : False
 }
 
 # LightningModule for training a RNNSequence module
@@ -38,6 +39,8 @@ class SequenceLearner(pl.LightningModule):
         print(class_weights)
         self.accs = []
         self.highest_acc = 0
+        self.running_train_acc = []
+        self.running_train_loss = []
         #self.class_weights = None
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -50,10 +53,15 @@ class SequenceLearner(pl.LightningModule):
         target = torch.argmax(y, dim=2)
         loss = nn.CrossEntropyLoss(weight=self.class_weights)(y_hat, target)
         acc = accuracy(pred.view(-1), target.view(-1), 'multiclass', num_classes=4)
+        self.running_train_acc.append(acc.cpu())
+        self.running_train_loss.append(loss.item())
         self.log("train_acc", acc, prog_bar=True)
         self.log("train_loss", loss, prog_bar=True)
         return {"loss": loss}
-
+    def on_train_epoch_end(self):
+        self.log("epoch_acc", np.mean(self.running_train_acc))
+        self.log("epoch_loss", torch.mean(self.running_train_loss))
+        return super().on_train_epoch_end()
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat, _ = self.model.forward(x)
@@ -76,7 +84,7 @@ class SequenceLearner(pl.LightningModule):
             self.highest_acc = acc
             self.savebestmodel()
         self.savelastmodel()
-        return
+        return super().on_validation_epoch_end()
     def test_step(self, batch, batch_idx):
         # Here we just reuse the validation_step for testing
         return self.validation_step(batch, batch_idx)
@@ -96,20 +104,21 @@ if __name__ == "__main__":
     train_set, val_set = vis.prepareData(train_dir, 
                                          plot=False,
                                          val_split=_config["val_split"])
-    print(train_set[0])
+    print(len(train_set))
     print(len(train_set[0]))
     train_set_x, train_set_y = vis.prepareBatchedData(train_set,
                                                       interval = _config["interval"],
                                                       batch_freq = _config["batch_freq"],
                                                       randomize = True,
-                                                      noise = True)
+                                                      noise = True,
+                                                      seq_output = _config["seq_out"])
     train_set_x = torch.Tensor(train_set_x)
     train_set_y = torch.Tensor(train_set_y)
 
     # weights for cross entropy loss
     _, train_class_weights = torch.unique(torch.argmax(train_set_y,dim=2),return_counts = True)
     train_class_weights = max(train_class_weights)/train_class_weights
-
+    print(train_class_weights)
     train_dataloader = data.DataLoader(
         data.TensorDataset(train_set_x, train_set_y),
         batch_size=128,
@@ -121,7 +130,8 @@ if __name__ == "__main__":
                                                   interval=_config["interval"], 
                                                   batch_freq=1,
                                                   randomize = False,
-                                                  noise=False)
+                                                  noise=False,
+                                                  seq_output=_config["seq_out"])
     val_set_x = torch.Tensor(val_set_x)
     val_set_y = torch.Tensor(val_set_y)
     val_dataloader = data.DataLoader(
@@ -138,6 +148,7 @@ if __name__ == "__main__":
             axes[i,j].plot(train_set_x[100*(i*3+j), :, :],label="IMU")
             #plt.plot(train_set_x[0, :, 1], label="Input feature 1")
             axes[i,j].plot(train_set_y[100*(i*3+j), :, :], label="Label")
+            print(train_set_y[100*(i*3+j), :, :])
             #axes[i,j].ylim((-1.1, 1.1))
             #axes[i,j].title("Training data")
             #axes[i,j].legend(loc="upper right")
@@ -158,7 +169,8 @@ if __name__ == "__main__":
                     activation=_config["activation"], 
                     backbone_dropout=_config["back_dr"], 
                     backbone_layers=_config["back_layer"], 
-                    backbone_units=_config["back_units"])
+                    backbone_units=_config["back_units"],
+                    return_sequences=False)
 
     learn = SequenceLearner(cfc_model, 
                             lr=_config["lr"], 
@@ -185,7 +197,11 @@ if __name__ == "__main__":
         prediction = cfc_model(train_set_x)[0].numpy()
     plt.figure(figsize=(6, 4))
     plt.plot(train_set_y[100, :, :], label="Target output")
-    plt.plot(prediction[100, :, :], label="NCP output")
+    if _config["seq_out"] is True:
+        plt.plot(prediction[100, :, :], label="NCP output")
+    else:
+        print(prediction[100, :])
+        plt.plot(np.argmax(prediction[100, :]), label="NCP output")
     plt.ylim((-1.1, 1.1))
     plt.title("Before training")
     plt.legend(loc="upper right")
@@ -199,9 +215,14 @@ if __name__ == "__main__":
         prediction = cfc_model(train_set_x)[0].numpy()
     for i in range(3):
         for j in range(3):
-            axes[i,j].plot(train_set_y[100*i, :, :], label="Target output")
+            print(train_set_y[100*(3*i+j), :, :])
+            axes[i,j].plot(train_set_y[100*(3*i+j), :, :], label="Target output")
             #plt.plot(train_set_x[0, :, 1], label="Input feature 1")
-            axes[i,j].plot(prediction[100*i, :, :], label="NCP output")
+            if _config["seq_out"] is True:
+                axes[i,j].plot(prediction[100*(3*i+j), :, :], label="NCP output")
+            else:
+                print(prediction)
+                axes[i,j].plot(np.argmax(prediction[100*(3*i+j), :]), label="NCP output")
             #axes[i,j].ylim((-1.1, 1.1))
             #axes[i,j].title("Training data")
             #axes[i,j].legend(loc="upper right")

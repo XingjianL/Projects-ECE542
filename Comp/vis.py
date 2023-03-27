@@ -127,7 +127,7 @@ def prepareData(filepath : str, plot = False, consistent_times = True, one_hot_e
     print(f"Example (training_set[0]):\n{training_set[0].head(3)}\n")
     return training_set, validation_set
 
-def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True, noise = True):
+def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True, noise = True, seq_output = True):
     batched_data_X = []
     batched_data_y = []
     for dataset in datasets:
@@ -139,6 +139,13 @@ def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True
             batch_idx = random.sample(range(0,len(dataset)-interval), batch_count)
         else:
             batch_idx = [interval*i for i in range(batch_count)]
+        if seq_output is False:
+            # reduce num of batches, otherwise it would be too much to train (in the millions)
+            # evenly sampled, most data points appear 4 times in the dataset
+            batch_idx = [i*int(interval/4) for i in range(int(len(dataset)/int(interval/4)))]
+            # insert padding of zeros ahead
+            np_data = np.insert(np_data,0,np.zeros((interval-1, 6+1+1+4)), axis=0) # 6 imu, 1 time, 1 label, 4 one hot columns
+
         X = []
         y = []
         for i in batch_idx:
@@ -147,13 +154,19 @@ def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True
                 X.append(np_data[i:i+interval,:6].reshape([1,interval,6]) + e)
             else:
                 X.append(np_data[i:i+interval,:6].reshape([1,interval,6]))
-            y.append(np_data[i:i+interval,8:].reshape([1,interval,4]))
+            if seq_output:
+                y.append(np_data[i:i+interval,8:].reshape([1,interval,4]))
+            else:
+                y.append(np_data[i+interval,8:].reshape([1,1,4]))
         
         batched_data_X += X
         batched_data_y += y
-    print(f"num_batches: {len(batched_data_X)}, each batch: {X[0].shape}")
+    print(f"num_batches: {len(batched_data_X)}, each X batch: {X[0].shape}, each Y batch: {y[0].shape}")
     batched_data_X = np.array(batched_data_X).reshape((len(batched_data_X), interval, 6))
-    batched_data_y = np.array(batched_data_y).reshape((len(batched_data_y), interval, 4))
+    if seq_output:
+        batched_data_y = np.array(batched_data_y).reshape((len(batched_data_y), interval, 4))
+    else:
+        batched_data_y = np.array(batched_data_y).reshape((len(batched_data_y), 1, 4))
     return batched_data_X, batched_data_y
 
 
