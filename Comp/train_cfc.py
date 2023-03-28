@@ -60,7 +60,7 @@ class SequenceLearner(pl.LightningModule):
         return {"loss": loss}
     def on_train_epoch_end(self):
         self.log("epoch_acc", np.mean(self.running_train_acc))
-        self.log("epoch_loss", torch.mean(self.running_train_loss))
+        self.log("epoch_loss", np.mean(self.running_train_loss))
         return super().on_train_epoch_end()
     def validation_step(self, batch, batch_idx):
         x, y = batch
