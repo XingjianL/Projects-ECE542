@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os
 from typing import List
 import random
+import seaborn as sns
 def getDataset(dir:str):
     files_all = os.listdir(dir)
 
@@ -127,9 +128,10 @@ def prepareData(filepath : str, plot = False, consistent_times = True, one_hot_e
     print(f"Example (training_set[0]):\n{training_set[0].head(3)}\n")
     return training_set, validation_set
 
-def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True, noise = True, seq_output = True):
+def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True, noise = True, seq_output = True, force_all = False):
     batched_data_X = []
     batched_data_y = []
+    print(f"\t{randomize}")
     for dataset in datasets:
         np_data = dataset.to_numpy().astype(np.float32)
         # how many batches from this dataset
@@ -141,23 +143,25 @@ def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True
             batch_idx = [interval*i for i in range(batch_count)]
         if seq_output is False:
             # reduce num of batches, otherwise it would be too much to train (in the millions)
-            # evenly sampled, most data points appear 4 times in the dataset
-            batch_idx = [i*int(interval/4) for i in range(int(len(dataset)/int(interval/4)))]
+            # evenly sampled, most data points appear batch_freq times in the dataset
+            batch_idx = [i*int(interval/batch_freq) for i in range(int(len(dataset)/int(interval/batch_freq)))]
+            if force_all:
+                batch_idx = [i for i in range(int(len(dataset)))]
             # insert padding of zeros ahead
-            np_data = np.insert(np_data,0,np.zeros((interval-1, 6+1+1+4)), axis=0) # 6 imu, 1 time, 1 label, 4 one hot columns
+            np_data = np.insert(np_data,0,np.zeros((interval, 6+1+1+4)), axis=0) # 6 imu, 1 time, 1 label, 4 one hot columns
 
         X = []
         y = []
         for i in batch_idx:
             if noise:
-                e = np.random.normal(0, 1, size = [1,interval,6])
+                e = np.random.normal(0, 5, size = [1,interval,6])
                 X.append(np_data[i:i+interval,:6].reshape([1,interval,6]) + e)
             else:
                 X.append(np_data[i:i+interval,:6].reshape([1,interval,6]))
             if seq_output:
                 y.append(np_data[i:i+interval,8:].reshape([1,interval,4]))
             else:
-                y.append(np_data[i+interval,8:].reshape([1,1,4]))
+                y.append(np_data[i+interval-1,8:].reshape([1,1,4]))
         
         batched_data_X += X
         batched_data_y += y
@@ -167,12 +171,37 @@ def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True
         batched_data_y = np.array(batched_data_y).reshape((len(batched_data_y), interval, 4))
     else:
         batched_data_y = np.array(batched_data_y).reshape((len(batched_data_y), 1, 4))
+    
     return batched_data_X, batched_data_y
 
+def frequencyDomain(data, only_fft = True):
+    freq = np.fft.fft(data,data.shape[1], axis=1)
+    print(freq[0].shape)
+    if only_fft:
+        return freq
+    combined = np.concatenate((data, freq), axis=2)
+    print(combined.shape)
+    return combined
 
 if __name__ == "__main__":
     train_dir = '/home/xing/Classes/ECE542/Project/Projects-ECE542/Comp/data/TrainingData/'
+    train_dir = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TrainingData/'
+
     training_set, validation_set = prepareData(train_dir, plot=False)
-    prepareBatchedData(training_set)
+    train_set_x, train_set_y = prepareBatchedData(training_set)
+    train_set_x = frequencyDomain(train_set_x, only_fft=False)
+
+    sns.set()
+    fig, axes = plt.subplots(3,3)
+    for i in range(3):
+        for j in range(3):
+            axes[i,j].plot(train_set_x[100*(i*3+j), :, :],label="IMU")
+            #plt.plot(train_set_x[0, :, 1], label="Input feature 1")
+            axes[i,j].plot(100*train_set_y[100*(i*3+j), :, :], label="Label")
+            #print(train_set_y[100*(i*3+j), :, :])
+            #axes[i,j].ylim((-1.1, 1.1))
+            #axes[i,j].title("Training data")
+            #axes[i,j].legend(loc="upper right")
+    plt.show()
     #test_dir = './data/TestData/'
     #test_set = getDataset(test_dir)
