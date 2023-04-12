@@ -154,6 +154,8 @@ def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True
         y = []
         for i in batch_idx:
             if noise:
+                #sinusoidal_e = np.random.uniform(-1,1)*np.sin(np.linspace(np.zeros(6), np.random.uniform(1,int(interval/6))*2*np.pi*np.ones(6), interval).reshape(1,interval,6))
+                #print(sinusoidal_e.shape)
                 e = np.random.normal(0, 5, size = [1,interval,6])
                 X.append(np_data[i:i+interval,:6].reshape([1,interval,6]) + e)
             else:

@@ -10,13 +10,15 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn.metrics as metrics
+
 _config_GRU = {
     "val_split" : 2/10,
     "lr" : 0.0001,
-    "hidden" : 36,
+    "min_lr" : 0.0001,
+    "hidden" : 32,
     "num_stack_cells" : 2,
     "interval" : 60,
-    "batch_freq" : 6,
+    "batch_freq" : 10,
     "epochs" : 100,
     "seq_out" : False,
     "batch_size" : 128,
@@ -46,7 +48,7 @@ def generateTrainValDataloader(train_dir):
     # weights for cross entropy loss
     _, train_class_weights = torch.unique(torch.argmax(train_set_y,dim=2),return_counts = True)
     train_class_weights = max(train_class_weights)/train_class_weights
-    train_class_weights[3:] = train_class_weights[3:] * 1.5
+    train_class_weights[3] = train_class_weights[3] * 1.5
     print(train_class_weights)
     train_dataloader = data.DataLoader(
         data.TensorDataset(train_set_x, train_set_y),
@@ -93,10 +95,12 @@ if __name__ == "__main__":
     gru_model = model.GRUModel(num_inputs,hidden_size=_config_GRU["hidden"],num_layers=_config_GRU["num_stack_cells"],output_size=4, all_output=_config_GRU["seq_out"]).cuda()
     criterion = nn.CrossEntropyLoss(weight = weights).cuda()
     optimizer = torch.optim.AdamW(gru_model.parameters(), lr=_config_GRU["lr"], weight_decay=1e-6)
-    
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, int(_config_GRU["epochs"]/4), eta_min=_config_GRU["min_lr"])
 
     epoch_train_loss = []
     epoch_val_loss = []
+    epoch_val_f1 = []
+    max_val_f1 = 0
     for epoch in range(_config_GRU["epochs"]):
         print()
         train_loss = 0
@@ -123,7 +127,11 @@ if __name__ == "__main__":
             if i % 1000 == 999:
                 last_loss = train_loss / i
                 print(f"epoch {epoch}, batch {i}, avgloss {last_loss}")
+        scheduler.step()
         print(f"epoch {epoch}, end, average batch loss {train_loss/i}")
+
+        # SAVE MODEL
+        torch.save(gru_model.state_dict(), "/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_last.pt")
         epoch_train_loss.append(train_loss/i)
         # each valid epoch
         valid_loss = 0
@@ -156,7 +164,11 @@ if __name__ == "__main__":
         print(f"validation epoch {epoch}, average valid loss {valid_loss/i}")
         print(f"validation f1: {fscore}, average: {np.mean(fscore)}")
         epoch_val_loss.append(valid_loss/i)
-
+        epoch_val_f1.append(np.mean(fscore))
+        if np.mean(fscore) > max_val_f1:
+            max_val_f1 = np.mean(fscore)
+            torch.save(copy.deepcopy(gru_model.state_dict()), "/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best.pt")
     plt.plot(epoch_train_loss)
     plt.plot(epoch_val_loss)
+    plt.plot(epoch_val_f1)
     plt.show()

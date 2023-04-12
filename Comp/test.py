@@ -8,11 +8,16 @@ import numpy as np
 
 import model
 import vis
+
+from scipy import stats
+
+# copy the config from train_gru
 _config_GRU = {
     "val_split" : 2/10,
-    "lr" : 0.0001,
-    "hidden" : 36,
-    "num_stack_cells" : 2,
+    "lr" : 0.001,
+    "min_lr" : 0.0001,
+    "hidden" : 24,
+    "num_stack_cells" : 3,
     "interval" : 60,
     "batch_freq" : 6,
     "epochs" : 100,
@@ -22,11 +27,28 @@ _config_GRU = {
     "freq_only" : False,
     "TBPTT" : False  # truncated back prop through time (not useful if the batches are shuffled anyways, or no longer in timeseries between batches) https://datascience.stackexchange.com/questions/118030/why-are-the-hidden-states-of-an-rnn-initialised-every-epoch-instead-of-every-bat
 }
+_config_GRU = {
+    "val_split" : 2/10,
+    "lr" : 0.0001,
+    "min_lr" : 0.0001,
+    "hidden" : 32,
+    "num_stack_cells" : 2,
+    "interval" : 60,
+    "batch_freq" : 10,
+    "epochs" : 100,
+    "seq_out" : False,
+    "batch_size" : 128,
+    "freq" : False,
+    "freq_only" : False,
+    "TBPTT" : False  # truncated back prop through time (not useful if the batches are shuffled anyways, or no longer in timeseries between batches) https://datascience.stackexchange.com/questions/118030/why-are-the-hidden-states-of-an-rnn-initialised-every-epoch-instead-of-every-bat
+}
+
+
 def test_loader(directory, multi_to_one = True):
     files_all = os.listdir(directory)
 
     Files_x = [file for file in files_all if "x.csv" in file]
-
+    print(Files_x)
     subjectTraining_all = []
 
     for i in range(len(Files_x)):
@@ -47,9 +69,9 @@ def test_loader(directory, multi_to_one = True):
         X.columns = ["imu1","imu2","imu3","imu4","imu5","imu6","time"]
         if multi_to_one:
             X = pd.concat([prepend_empty, X], axis=0)
-        X["pred"] = -1
+        X["pred"] = 0
         y.columns = ["time"]
-        y['pred_y'] = -1
+        y['pred_y'] = 0
         y = y.reindex(columns=["pred_y", "time"])
         organizedX.append(X)
         organizedY.append(y)
@@ -58,16 +80,18 @@ def test_loader(directory, multi_to_one = True):
 
 if __name__ == "__main__":
     testDir = "/home/xing/Classes/ECE542/Project/Projects-ECE542/Comp/data/TestData/"
+    testDir = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/'
     model_path = ""
     X_list, y_list = test_loader(testDir)
 
     for X_df in X_list:
         grumodel = model.GRUModel(6,hidden_size=_config_GRU["hidden"],num_layers=_config_GRU["num_stack_cells"],output_size=4, all_output=_config_GRU["seq_out"]).cuda()
+        grumodel.load_state_dict(torch.load("/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best.pt"))
         #print(X)
         X = X_df.to_numpy()
-        X_preds = -np.ones((len(X),1))
-        print(len(X))
-        print(X_df.head())
+        X_preds = np.zeros((len(X),1))
+        #print(len(X))
+        #print(X_df.head())
         for i in range(0,len(X),_config_GRU["batch_size"]):
             if not _config_GRU["TBPTT"]:
                 h0 = None
@@ -82,14 +106,36 @@ if __name__ == "__main__":
             pred = torch.argmax(outputs, dim=1)
             X_preds[i+_config_GRU["interval"]-1:i+_config_GRU["batch_size"]+_config_GRU["interval"]-1] = pred.cpu().numpy()
             #print(i,(batch.shape), pred.cpu().item())
-        print(X_preds[:5])
+        #print(X_preds[:5])
         X_df["pred"] = X_preds
-        print(X_df.iloc[58:61])
-        print(X_df.iloc[-3:])
-    
+        #print(X_df.iloc[58:61])
+        #print(X_df.iloc[-3:])
+    fig, axes = plt.subplots(nrows=2, ncols=2)
     for i, y_df in enumerate(y_list):
         #print(y_df)
         merged = pd.merge(X_list[i][["time", "pred"]], y_df, how='outer', on='time', sort='True')
-        merged["pred"].interpolate(method='nearest', inplace=True)
-        y_df = merged.dropna()[["time", "pred"]]
-        print(y_df)
+        #print(merged["pred"])
+        if True:
+            val_to_fill = np.where(pd.isnull(merged["pred"]))[0]
+            ts = np.array([merged["pred"].loc[val_to_fill - i] for i in range(10)])
+            #t_minus_4 = merged["pred"].loc[val_to_fill - 4]
+            #t_minus_3 = merged["pred"].loc[val_to_fill - 3]
+            #t_minus_2 = merged["pred"].loc[val_to_fill - 2]
+            #t_minus_1 = merged["pred"].loc[val_to_fill - 1]
+            #ts = np.array([t_minus_1, t_minus_2, t_minus_3, t_minus_4])
+            print(stats.mode(ts)[0])
+            final = merged[merged["pred"].isna()].reset_index()
+            print(final)
+            final["pred"] = pd.Series(stats.mode(ts)[0].flatten())
+        else:
+        #merged["pred"].fillna(pd.Series(stats.mode(ts)[0].flatten()))
+
+            merged["pred"].interpolate(method='nearest', inplace=True)
+            final = merged.dropna()[["time", "pred"]]
+        final["pred"].to_csv(f"/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/generated/{i}.csv",
+                            index= False,
+                            header=False)
+        #print(y_df)
+        axes[int(i/2)][i%2].plot(final["time"], final["pred"], '.-b',linewidth = 1)
+        #y_df.plot(x="time", y="pred")
+    plt.show()
