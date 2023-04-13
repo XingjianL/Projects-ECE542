@@ -12,14 +12,14 @@ import numpy as np
 import sklearn.metrics as metrics
 from sklearn.model_selection import KFold
 _config_GRU = {
-    "val_split" : 1/10,
+    "val_split" : 2/10,
     "lr" : 0.001,
     "min_lr" : 0.0001,
-    "hidden" : 32,
-    "num_stack_cells" : 2,
+    "hidden" : 24,
+    "num_stack_cells" : 1,
     "interval" : 60,
-    "batch_freq" : 20,
-    "epochs" : 100,
+    "batch_freq" : 30,
+    "epochs" : 50,
     "kfolds" : True,
     "seq_out" : False,
     "batch_size" : 128,
@@ -78,7 +78,7 @@ def generateTrainValDataloader(train_dir):
     train_dataloader = data.DataLoader(
         data.TensorDataset(train_set_x, train_set_y),
         batch_size=_config_GRU["batch_size"],
-        shuffle=False,
+        shuffle=True,
         num_workers=4,
         #drop_last=True
     )
@@ -102,7 +102,7 @@ def generateTrainValDataloader(train_dir):
     )
     return train_dataloader, val_dataloader, train_class_weights
 
-def nonKFoldTrain(gru_model, optimizer, scheduler, train_dataloader, val_dataloader):
+def nonKFoldTrain(gru_model, criterion, optimizer, scheduler, train_dataloader, val_dataloader):
     epoch_train_loss = []
     epoch_val_loss = []
     epoch_val_f1 = []
@@ -180,7 +180,7 @@ def nonKFoldTrain(gru_model, optimizer, scheduler, train_dataloader, val_dataloa
     plt.plot(epoch_val_f1)
     plt.show()
 
-def KFoldTrain(gru_model, optimizer, scheduler, dataloader):
+def KFoldTrain(dataloader, weights):
     num_folds = int(1 / _config_GRU["val_split"])
     kfold = KFold(n_splits=num_folds, shuffle=True)
     epoch_train_loss = []
@@ -188,6 +188,17 @@ def KFoldTrain(gru_model, optimizer, scheduler, dataloader):
     epoch_val_f1 = []
     max_val_f1 = np.zeros(num_folds)
     for fold, (train_id, val_id) in enumerate(kfold.split(dataloader)):
+        gru_model = model.GRUModel(num_inputs,
+                               interval=_config_GRU["interval"],
+                               hidden_size=_config_GRU["hidden"],
+                               num_layers=_config_GRU["num_stack_cells"],
+                               output_size=4,
+                               all_output=_config_GRU["seq_out"]).cuda()
+        optimizer = torch.optim.AdamW(gru_model.parameters(), lr=_config_GRU["lr"], weight_decay=1e-6)
+        T_max = int(_config_GRU["epochs"]*_config_GRU["val_split"])
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max, eta_min=_config_GRU["min_lr"])
+        criterion = nn.CrossEntropyLoss(weight = weights).cuda()
+
         print('-'*20)
         print(f"Fold: {fold}")
         print(f"train, val batch counts: {len(train_id)}, {len(val_id)}")
@@ -204,6 +215,7 @@ def KFoldTrain(gru_model, optimizer, scheduler, dataloader):
             h0 = None
             # each training epoch
             for i, (seqs, labels) in enumerate(train_loader):
+                #print(labels.shape)
                 if not _config_GRU["TBPTT"]:
                     h0 = None
                 seqs = Variable(seqs.view(-1, _config_GRU["interval"], num_inputs).cuda())
@@ -263,8 +275,8 @@ def KFoldTrain(gru_model, optimizer, scheduler, dataloader):
             epoch_val_f1.append(np.mean(fscore))
             if np.mean(fscore) > max_val_f1[fold]:
                 max_val_f1[fold] = np.mean(fscore)
-                torch.save(copy.deepcopy(gru_model.state_dict()), "/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best.pt")
-    print("F1 for each fold: ", max_val_f1)
+                torch.save(copy.deepcopy(gru_model.state_dict()), f"/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best_{fold}.pt")
+    print("F1 for each fold: ", max_val_f1, " average: ", np.mean(max_val_f1))
     plt.plot(epoch_train_loss)
     plt.plot(epoch_val_loss)
     plt.plot(epoch_val_f1)
@@ -296,6 +308,6 @@ if __name__ == "__main__":
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max, eta_min=_config_GRU["min_lr"])
 
     if _config_GRU["kfolds"] is False:
-        nonKFoldTrain(gru_model, optimizer, scheduler, train_dataloader, val_dataloader)
+        nonKFoldTrain(gru_model, criterion, optimizer, scheduler, train_dataloader, val_dataloader)
     else:
-        KFoldTrain(gru_model, optimizer, scheduler, train_dataloader)
+        KFoldTrain(train_dataloader, weights)

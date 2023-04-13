@@ -29,17 +29,16 @@ _config_GRU = {
 }
 _config_GRU = {
     "val_split" : 2/10,
-    "lr" : 0.0001,
+    "lr" : 0.001,
     "min_lr" : 0.0001,
-    "hidden" : 32,
-    "num_stack_cells" : 2,
+    "hidden" : 24,
+    "num_stack_cells" : 1,
     "interval" : 60,
-    "batch_freq" : 10,
-    "epochs" : 100,
+    "batch_freq" : 30,
+    "epochs" : 50,
+    "kfolds" : True,
     "seq_out" : False,
     "batch_size" : 128,
-    "freq" : False,
-    "freq_only" : False,
     "TBPTT" : False  # truncated back prop through time (not useful if the batches are shuffled anyways, or no longer in timeseries between batches) https://datascience.stackexchange.com/questions/118030/why-are-the-hidden-states-of-an-rnn-initialised-every-epoch-instead-of-every-bat
 }
 
@@ -85,8 +84,13 @@ if __name__ == "__main__":
     X_list, y_list = test_loader(testDir)
 
     for X_df in X_list:
-        grumodel = model.GRUModel(6,hidden_size=_config_GRU["hidden"],num_layers=_config_GRU["num_stack_cells"],output_size=4, all_output=_config_GRU["seq_out"]).cuda()
-        grumodel.load_state_dict(torch.load("/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best.pt"))
+        grumodel = model.GRUModel(6,
+                                  interval=_config_GRU["interval"],
+                                  hidden_size=_config_GRU["hidden"],
+                                  num_layers=_config_GRU["num_stack_cells"],
+                                  output_size=4, 
+                                  all_output=_config_GRU["seq_out"]).cuda()
+        grumodel.load_state_dict(torch.load("/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best_2.pt"))
         #print(X)
         X = X_df.to_numpy()
         X_preds = np.zeros((len(X),1))
@@ -98,11 +102,21 @@ if __name__ == "__main__":
             batch = []
             for j in range(_config_GRU["batch_size"]):
                 if (i+j+_config_GRU["interval"]) > len(X):
-                    print(i+j, len(X),i,j)
+                    #print(i+j, len(X),i,j)
                     break
-                batch.append(X[i+j:i+j+_config_GRU["interval"]][:,:6]) # single batch
-            batch = torch.Tensor(np.array(batch)).view(-1, _config_GRU["interval"], 6).float().cuda()
-            outputs, h1 = grumodel(batch, h0)
+                data = np.array(X[i+j:i+j+_config_GRU["interval"]][:,:6]).reshape(_config_GRU["interval"],6)
+                mean = np.mean(data, axis=0)
+                std = np.std(data, axis=0)
+                
+                data = np.nan_to_num((data - mean)/std, nan=0)
+
+                #norm = np.linalg.norm(data, axis=1)
+                #data = np.nan_to_num(data / norm,nan=0)
+                batch.append(data) # single batch
+            batch = np.array(batch)
+            
+            xinput = torch.Tensor(batch).view(-1, _config_GRU["interval"], 6).float().cuda()
+            outputs, h1 = grumodel(xinput, h0)
             pred = torch.argmax(outputs, dim=1)
             X_preds[i+_config_GRU["interval"]-1:i+_config_GRU["batch_size"]+_config_GRU["interval"]-1] = pred.cpu().numpy()
             #print(i,(batch.shape), pred.cpu().item())
@@ -117,15 +131,15 @@ if __name__ == "__main__":
         #print(merged["pred"])
         if True:
             val_to_fill = np.where(pd.isnull(merged["pred"]))[0]
-            ts = np.array([merged["pred"].loc[val_to_fill - i] for i in range(10)])
+            ts = np.array([merged["pred"].loc[val_to_fill - i] for i in range(4)])
             #t_minus_4 = merged["pred"].loc[val_to_fill - 4]
             #t_minus_3 = merged["pred"].loc[val_to_fill - 3]
             #t_minus_2 = merged["pred"].loc[val_to_fill - 2]
             #t_minus_1 = merged["pred"].loc[val_to_fill - 1]
             #ts = np.array([t_minus_1, t_minus_2, t_minus_3, t_minus_4])
-            print(stats.mode(ts)[0])
+            #print(stats.mode(ts)[0])
             final = merged[merged["pred"].isna()].reset_index()
-            print(final)
+            #print(final)
             final["pred"] = pd.Series(stats.mode(ts)[0].flatten())
         else:
         #merged["pred"].fillna(pd.Series(stats.mode(ts)[0].flatten()))
@@ -136,6 +150,7 @@ if __name__ == "__main__":
                             index= False,
                             header=False)
         #print(y_df)
-        axes[int(i/2)][i%2].plot(final["time"], final["pred"], '.-b',linewidth = 1)
+        if i < 4:
+            axes[int(i/2)][i%2].plot(final["time"], final["pred"], '.-b',linewidth = 1)
         #y_df.plot(x="time", y="pred")
     plt.show()

@@ -160,7 +160,7 @@ def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True
                 # zscore norm
             mean = np.mean(xdata, axis=1)
             std = np.std(xdata, axis=1)
-            #xdata = np.nan_to_num((xdata - mean)/std, nan=0)
+            xdata = np.nan_to_num((xdata - mean)/std, nan=0)
                 # unit norm
             #norm = np.linalg.norm(xdata, axis=1)
             #xdata = np.nan_to_num(xdata / norm,nan=0)

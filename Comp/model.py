@@ -16,9 +16,9 @@ class GRUModel(nn.Module):
         self.gru = nn.GRU(input_size, hidden_size, num_layers, batch_first = batch_first)
         self.relu = nn.ReLU()
         self.fc = nn.Linear(hidden_size, output_size)
-        self.only_one = nn.Sequential(nn.Conv1d(output_size, output_size*2, kernel_size=15, padding="same"),
-                                      nn.BatchNorm1d(output_size*2),
-                                      nn.Conv1d(output_size*2, output_size, kernel_size=15, padding="same"),
+        self.only_one = nn.Sequential(nn.Conv1d(output_size, output_size, kernel_size=15, padding="same"),
+                                      nn.BatchNorm1d(output_size),
+                                      nn.Conv1d(output_size, output_size, kernel_size=15, padding="same"),
                                       nn.Linear(interval,10),
                                       nn.Linear(10,1))
 
@@ -28,10 +28,11 @@ class GRUModel(nn.Module):
         else:
             self.h0 = h0
         out, h1 = self.gru(x, self.h0)
-        out = self.fc(self.relu(out)).swapaxes(1,2)
+        out = self.fc(self.relu(out))
         if self.all_output:
-            return out, h1
-        out = self.only_one(out)
-        return out, h1
+            return out.swapaxes(1,2), h1
+        #out = self.only_one(out.swapaxes(1,2))
+        #return out, h1
+        return out[:,-1,None].swapaxes(1,2), h1
     def init_hidden(self, batch_size):
         self.h0 = torch.zeros((self.num_layers, batch_size, self.hidden_size)).cuda()
