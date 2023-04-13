@@ -125,13 +125,13 @@ def prepareData(filepath : str, plot = False, consistent_times = True, one_hot_e
         validation_set = oneHotEncode(validation_set)
     print(f"Dataset obtained: training {len(training_set)}, val {len(validation_set)}. \
           \n datapoints: train {sum([len(x) for x in training_set])}, val {sum([len(x) for x in validation_set])}.")
-    print(f"Example (training_set[0]):\n{training_set[0].head(3)}\n")
+    #print(f"Example (training_set[0]):\n{training_set[0].head(3)}\n")
     return training_set, validation_set
 
 def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True, noise = True, seq_output = True, force_all = False):
     batched_data_X = []
     batched_data_y = []
-    print(f"\t{randomize}")
+    #print(f"\t{randomize}")
     for dataset in datasets:
         np_data = dataset.to_numpy().astype(np.float32)
         # how many batches from this dataset
@@ -153,13 +153,20 @@ def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True
         X = []
         y = []
         for i in batch_idx:
+            xdata = np_data[i:i+interval,:6].reshape([1,interval,6])
             if noise:
-                #sinusoidal_e = np.random.uniform(-1,1)*np.sin(np.linspace(np.zeros(6), np.random.uniform(1,int(interval/6))*2*np.pi*np.ones(6), interval).reshape(1,interval,6))
-                #print(sinusoidal_e.shape)
                 e = np.random.normal(0, 5, size = [1,interval,6])
-                X.append(np_data[i:i+interval,:6].reshape([1,interval,6]) + e)
-            else:
-                X.append(np_data[i:i+interval,:6].reshape([1,interval,6]))
+                xdata = xdata + e
+                # zscore norm
+            mean = np.mean(xdata, axis=1)
+            std = np.std(xdata, axis=1)
+            #xdata = np.nan_to_num((xdata - mean)/std, nan=0)
+                # unit norm
+            #norm = np.linalg.norm(xdata, axis=1)
+            #xdata = np.nan_to_num(xdata / norm,nan=0)
+            #print(mean.shape)
+            #print(std.shape)
+            X.append(xdata)
             if seq_output:
                 y.append(np_data[i:i+interval,8:].reshape([1,interval,4]))
             else:
