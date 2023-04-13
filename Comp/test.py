@@ -31,17 +31,16 @@ _config_GRU = {
     "val_split" : 2/10,
     "lr" : 0.001,
     "min_lr" : 0.0001,
-    "hidden" : 24,
+    "hidden" : 36,
     "num_stack_cells" : 1,
     "interval" : 60,
-    "batch_freq" : 30,
+    "batch_freq" : 45,
     "epochs" : 50,
     "kfolds" : True,
     "seq_out" : False,
     "batch_size" : 128,
     "TBPTT" : False  # truncated back prop through time (not useful if the batches are shuffled anyways, or no longer in timeseries between batches) https://datascience.stackexchange.com/questions/118030/why-are-the-hidden-states-of-an-rnn-initialised-every-epoch-instead-of-every-bat
 }
-
 
 def test_loader(directory, multi_to_one = True):
     files_all = os.listdir(directory)
@@ -80,7 +79,7 @@ def test_loader(directory, multi_to_one = True):
 if __name__ == "__main__":
     testDir = "/home/xing/Classes/ECE542/Project/Projects-ECE542/Comp/data/TestData/"
     testDir = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/'
-    model_path = ""
+    model_path = "/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best_4.pt"
     X_list, y_list = test_loader(testDir)
 
     for X_df in X_list:
@@ -90,7 +89,7 @@ if __name__ == "__main__":
                                   num_layers=_config_GRU["num_stack_cells"],
                                   output_size=4, 
                                   all_output=_config_GRU["seq_out"]).cuda()
-        grumodel.load_state_dict(torch.load("/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best_2.pt"))
+        grumodel.load_state_dict(torch.load(model_path))
         #print(X)
         X = X_df.to_numpy()
         X_preds = np.zeros((len(X),1))
@@ -105,10 +104,9 @@ if __name__ == "__main__":
                     #print(i+j, len(X),i,j)
                     break
                 data = np.array(X[i+j:i+j+_config_GRU["interval"]][:,:6]).reshape(_config_GRU["interval"],6)
-                mean = np.mean(data, axis=0)
-                std = np.std(data, axis=0)
-                
-                data = np.nan_to_num((data - mean)/std, nan=0)
+                #mean = np.mean(data, axis=0)
+                #std = np.std(data, axis=0)
+                #data = np.nan_to_num((data - mean)/std, nan=0)
 
                 #norm = np.linalg.norm(data, axis=1)
                 #data = np.nan_to_num(data / norm,nan=0)
@@ -129,7 +127,7 @@ if __name__ == "__main__":
         #print(y_df)
         merged = pd.merge(X_list[i][["time", "pred"]], y_df, how='outer', on='time', sort='True')
         #print(merged["pred"])
-        if True:
+        if False:
             val_to_fill = np.where(pd.isnull(merged["pred"]))[0]
             ts = np.array([merged["pred"].loc[val_to_fill - i] for i in range(4)])
             #t_minus_4 = merged["pred"].loc[val_to_fill - 4]

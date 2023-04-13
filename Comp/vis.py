@@ -155,15 +155,18 @@ def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True
         for i in batch_idx:
             xdata = np_data[i:i+interval,:6].reshape([1,interval,6])
             if noise:
-                e = np.random.normal(0, 5, size = [1,interval,6])
+                e = np.random.normal(0, 7, size = [1,interval,6])
                 xdata = xdata + e
                 # zscore norm
-            mean = np.mean(xdata, axis=1)
-            std = np.std(xdata, axis=1)
-            xdata = np.nan_to_num((xdata - mean)/std, nan=0)
+            #mean = np.mean(xdata, axis=1)
+            #std = np.std(xdata, axis=1)
+            #xdata = np.nan_to_num((xdata - mean)/std, nan=0)
                 # unit norm
             #norm = np.linalg.norm(xdata, axis=1)
             #xdata = np.nan_to_num(xdata / norm,nan=0)
+                # minmax
+            #datarange = np.max(xdata,axis=1) - np.min(xdata,axis=1)
+            #xdata = np.nan_to_num(xdata / datarange,nan=0)
             #print(mean.shape)
             #print(std.shape)
             X.append(xdata)
