@@ -35,7 +35,7 @@ _config_GRU = {
     "num_stack_cells" : 1,
     "interval" : 60,
     "batch_freq" : 45,
-    "epochs" : 50,
+    "epochs" : 75,
     "kfolds" : True,
     "seq_out" : False,
     "batch_size" : 128,
@@ -74,13 +74,13 @@ def test_loader(directory, multi_to_one = True):
         organizedX.append(X)
         organizedY.append(y)
 
-    return organizedX, organizedY
+    return organizedX, organizedY, Files_x
 
 if __name__ == "__main__":
     testDir = "/home/xing/Classes/ECE542/Project/Projects-ECE542/Comp/data/TestData/"
     testDir = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/'
     model_path = "/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best_4.pt"
-    X_list, y_list = test_loader(testDir)
+    X_list, y_list, output_filenames = test_loader(testDir)
 
     for X_df in X_list:
         grumodel = model.GRUModel(6,
@@ -104,9 +104,9 @@ if __name__ == "__main__":
                     #print(i+j, len(X),i,j)
                     break
                 data = np.array(X[i+j:i+j+_config_GRU["interval"]][:,:6]).reshape(_config_GRU["interval"],6)
-                #mean = np.mean(data, axis=0)
-                #std = np.std(data, axis=0)
-                #data = np.nan_to_num((data - mean)/std, nan=0)
+                mean = np.mean(data, axis=0)
+                std = np.std(data, axis=0)
+                data = np.nan_to_num((data - mean)/std, nan=0)
 
                 #norm = np.linalg.norm(data, axis=1)
                 #data = np.nan_to_num(data / norm,nan=0)
@@ -129,7 +129,7 @@ if __name__ == "__main__":
         #print(merged["pred"])
         if False:
             val_to_fill = np.where(pd.isnull(merged["pred"]))[0]
-            ts = np.array([merged["pred"].loc[val_to_fill - i] for i in range(4)])
+            ts = np.array([merged["pred"].loc[val_to_fill - i] for i in range(15)])
             #t_minus_4 = merged["pred"].loc[val_to_fill - 4]
             #t_minus_3 = merged["pred"].loc[val_to_fill - 3]
             #t_minus_2 = merged["pred"].loc[val_to_fill - 2]
@@ -144,7 +144,8 @@ if __name__ == "__main__":
 
             merged["pred"].interpolate(method='nearest', inplace=True)
             final = merged.dropna()[["time", "pred"]]
-        final["pred"].to_csv(f"/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/generated/{i}.csv",
+        output_filename = output_filenames[i].replace("x","y")
+        final["pred"].to_csv(f"/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/generated/{output_filename}.csv",
                             index= False,
                             header=False)
         #print(y_df)

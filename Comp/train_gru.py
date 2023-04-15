@@ -19,7 +19,7 @@ _config_GRU = {
     "num_stack_cells" : 1,
     "interval" : 60,
     "batch_freq" : 45,
-    "epochs" : 50,
+    "epochs" : 75,
     "kfolds" : True,
     "seq_out" : False,
     "batch_size" : 128,

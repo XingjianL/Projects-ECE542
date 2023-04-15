@@ -158,9 +158,9 @@ def prepareBatchedData(datasets, interval = 80, batch_freq = 1, randomize = True
                 e = np.random.normal(0, 7, size = [1,interval,6])
                 xdata = xdata + e
                 # zscore norm
-            #mean = np.mean(xdata, axis=1)
-            #std = np.std(xdata, axis=1)
-            #xdata = np.nan_to_num((xdata - mean)/std, nan=0)
+            mean = np.mean(xdata, axis=1)
+            std = np.std(xdata, axis=1)
+            xdata = np.nan_to_num((xdata - mean)/std, nan=0)
                 # unit norm
             #norm = np.linalg.norm(xdata, axis=1)
             #xdata = np.nan_to_num(xdata / norm,nan=0)
