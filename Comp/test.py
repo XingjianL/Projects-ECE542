@@ -90,6 +90,9 @@ if __name__ == "__main__":
                                   output_size=4, 
                                   all_output=_config_GRU["seq_out"]).cuda()
         grumodel.load_state_dict(torch.load(model_path))
+        print("ALL parameters: ", sum(p.numel() for p in grumodel.parameters()))
+        #print("learned parameters: ", sum(p.numel() for p in grumodel.parameters() if p.requires_grad))
+
         #print(X)
         X = X_df.to_numpy()
         X_preds = np.zeros((len(X),1))
