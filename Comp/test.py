@@ -79,7 +79,7 @@ def test_loader(directory, multi_to_one = True):
 if __name__ == "__main__":
     testDir = "/home/xing/Classes/ECE542/Project/Projects-ECE542/Comp/data/TestData/"
     testDir = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/'
-    model_path = "/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best_4.pt"
+    model_path = "/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best_1.pt"
     X_list, y_list, output_filenames = test_loader(testDir)
 
     for X_df in X_list:
@@ -145,11 +145,12 @@ if __name__ == "__main__":
             merged["pred"].interpolate(method='nearest', inplace=True)
             final = merged.dropna()[["time", "pred"]]
         output_filename = output_filenames[i].replace("x","y")
-        final["pred"].to_csv(f"/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/generated/{output_filename}.csv",
+        final["pred"].to_csv(f"/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/generated/{output_filename}",
                             index= False,
                             header=False)
         #print(y_df)
         if i < 4:
             axes[int(i/2)][i%2].plot(final["time"], final["pred"], '.-b',linewidth = 1)
+            axes[int(i/2)][i%2].set_title(output_filename)
         #y_df.plot(x="time", y="pred")
     plt.show()
