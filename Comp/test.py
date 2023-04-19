@@ -28,14 +28,14 @@ _config_GRU = {
     "TBPTT" : False  # truncated back prop through time (not useful if the batches are shuffled anyways, or no longer in timeseries between batches) https://datascience.stackexchange.com/questions/118030/why-are-the-hidden-states-of-an-rnn-initialised-every-epoch-instead-of-every-bat
 }
 _config_GRU = {
-    "val_split" : 2/10,
+    "val_split" : 5/10,
     "lr" : 0.001,
     "min_lr" : 0.0001,
-    "hidden" : 36,
-    "num_stack_cells" : 1,
+    "hidden" : 128,
+    "num_stack_cells" : 2,
     "interval" : 60,
-    "batch_freq" : 45,
-    "epochs" : 75,
+    "batch_freq" : 55,
+    "epochs" : 40,
     "kfolds" : True,
     "seq_out" : False,
     "batch_size" : 128,
@@ -79,7 +79,7 @@ def test_loader(directory, multi_to_one = True):
 if __name__ == "__main__":
     testDir = "/home/xing/Classes/ECE542/Project/Projects-ECE542/Comp/data/TestData/"
     testDir = '/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/data/TestData/'
-    model_path = "/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best_1.pt"
+    model_path = "/home/lixin/Classes/Spr23/542/Projects-ECE542/Comp/Models/gru_best_0.pt"
     X_list, y_list, output_filenames = test_loader(testDir)
 
     for X_df in X_list:

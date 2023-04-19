@@ -12,14 +12,14 @@ import numpy as np
 import sklearn.metrics as metrics
 from sklearn.model_selection import KFold
 _config_GRU = {
-    "val_split" : 2/10,
+    "val_split" : 5/10,
     "lr" : 0.001,
     "min_lr" : 0.0001,
-    "hidden" : 36,
-    "num_stack_cells" : 1,
+    "hidden" : 128,
+    "num_stack_cells" : 2,
     "interval" : 60,
-    "batch_freq" : 45,
-    "epochs" : 75,
+    "batch_freq" : 55,
+    "epochs" : 40,
     "kfolds" : True,
     "seq_out" : False,
     "batch_size" : 128,
