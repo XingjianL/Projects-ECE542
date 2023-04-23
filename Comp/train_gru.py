@@ -12,17 +12,17 @@ import numpy as np
 import sklearn.metrics as metrics
 from sklearn.model_selection import KFold
 _config_GRU = {
-    "val_split" : 5/10,
+    "val_split" : 1/10,
     "lr" : 0.001,
     "min_lr" : 0.0001,
     "hidden" : 128,
     "num_stack_cells" : 2,
     "interval" : 60,
     "batch_freq" : 55,
-    "epochs" : 40,
+    "epochs" : 50,
     "kfolds" : True,
     "seq_out" : False,
-    "batch_size" : 128,
+    "batch_size" : 32,
     "TBPTT" : False  # truncated back prop through time (not useful if the batches are shuffled anyways, or no longer in timeseries between batches) https://datascience.stackexchange.com/questions/118030/why-are-the-hidden-states-of-an-rnn-initialised-every-epoch-instead-of-every-bat
 }
 class SimpleDataset(data.Dataset):
@@ -79,7 +79,7 @@ def generateTrainValDataloader(train_dir):
         data.TensorDataset(train_set_x, train_set_y),
         batch_size=_config_GRU["batch_size"],
         shuffle=True,
-        num_workers=4,
+        num_workers=8,
         #drop_last=True
     )
 
@@ -97,7 +97,7 @@ def generateTrainValDataloader(train_dir):
         data.TensorDataset(val_set_x, val_set_y),
         batch_size=_config_GRU["batch_size"],
         shuffle=False,
-        num_workers=4,
+        num_workers=8,
         #drop_last=True
     )
     return train_dataloader, val_dataloader, train_class_weights
